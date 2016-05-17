@@ -1,3 +1,5 @@
+This version runs for Metatrader builds > 600. It won't run with older builds. For these please use version from which I've forked this.
+
 
 PRECOMPILED: precompile libraries for zmq version 2.0.10 and for the wrappers are available in the libs folder for x86 32 bit architecture on windows and linux. I am not sure if the linux wrapper can be used with any wine version, hmm... 
 
