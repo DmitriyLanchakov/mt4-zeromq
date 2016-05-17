@@ -78,10 +78,10 @@ int z_msg_close(int msg) {
 }
 //sockets
 int z_subscribe (int socket,string val) {
-  z_set_sockopt(socket,ZMQ_SUBSCRIBE,val);
+  return(z_set_sockopt(socket,ZMQ_SUBSCRIBE,val));
 }
 int z_unsubscribe(int socket,string val) {
-  z_set_sockopt(socket,ZMQ_UNSUBSCRIBE,val);
+  return(z_set_sockopt(socket,ZMQ_UNSUBSCRIBE,val));
 }
 
 int z_set_sockopt(int socket,int option_name,string option_value) {
@@ -97,9 +97,9 @@ int z_set_sockopt(int socket,int option_name,string option_value) {
 }
 
   
-int z_socket(int context,int type) {
- z_trace("z_socket: "+context+" "+type);
- int ret = _zmq_socket(context,type); 
+int z_socket(int scontext,int type) {
+ z_trace("z_socket: "+scontext+" "+type);
+ int ret = _zmq_socket(scontext,type); 
  if (ret==-1)
    z_error();
  return(ret);
@@ -156,14 +156,14 @@ int z_connect(int socket,string endpoint) { //for the clients
 }
  
 //TODO: z_send_raw
-int z_send_double_array(int socket,double array[],int flags=0) {
+int z_send_double_array(int socket,double &array[],int flags=0) {
  z_trace("z_send_double_array: "+flags);
  int ret = _zmq_send_double_array(array,ArraySize(array),socket,flags); 
  if (ret==-1)
    z_error();  
  return(ret);
 }
-int z_send_int_array(int socket,int array[],int flags=0) {
+int z_send_int_array(int socket,int &array[],int flags=0) {
  z_trace("z_send_int_array: "+flags); 
  int ret = _zmq_send_int_array(array,ArraySize(array),socket,flags); 
  if (ret==-1)
@@ -205,11 +205,11 @@ int z_init(int io_threads) {
   return(ret);
 }
 
-int z_term(int context) {
+int z_term(int scontext) {
  z_trace("z_term");
- if(context==NULL) 
+ if(scontext==NULL) 
    return(0);
- int ret = _zmq_term(context); 
+ int ret = _zmq_term(scontext); 
  if (ret==-1) 
   z_error();
  return(ret);
