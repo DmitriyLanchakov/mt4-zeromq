@@ -47,16 +47,18 @@ int z_msg_empty() {
 int z_msg_new (string data) {
   z_trace("z_msg_new: "+data);
 
-  int msg = _zmsg_new(); 
-  int ret = _zmq_msg_init_data(msg,data,StringLen(data));
+  int msg = _zmsg_new();
+  uchar dataChar[];
+  StringToCharArray(data, dataChar);
+  int ret = _zmq_msg_init_data(msg,dataChar,StringLen(data));
   if (ret==-1) 
     z_error();
   return(msg);
 }
 
 string z_msg(int msg) { //TODO: catch error if zmq_msg_data doesnt work out?
-  z_trace("z_msg"); 
-  return(_zmq_msg_data(msg));
+  z_trace("z_msg");
+  return(_ptr2str(_zmq_msg_data(msg)));
 }
 
 int z_msg_len(int msg) {
@@ -86,7 +88,9 @@ int z_set_sockopt(int socket,int option_name,string option_value) {
   if (socket==0) {
     return(0);
   }
-  int ret = _zmq_setsockopt(socket,option_name,option_value,StringLen(option_value));
+  uchar optvalChar[];
+  StringToCharArray(option_value, optvalChar);
+  int ret = _zmq_setsockopt(socket, option_name, optvalChar, StringLen(option_value));
   if (ret==-1)
     z_error();
   return(ret);
@@ -134,14 +138,18 @@ int z_close(int socket) {
 }
 int z_bind (int socket,string endpoint) { //for the servers
   z_trace("z_bind: "+endpoint); 
-  int ret = _zmq_bind(socket,endpoint); 
+  uchar endpointChar[];
+  StringToCharArray(endpoint, endpointChar);
+  int ret = _zmq_bind(socket, endpointChar); 
   if (ret==-1)
    z_error();
   return(ret);
 }
 int z_connect(int socket,string endpoint) { //for the clients
  z_trace("z_connect: "+endpoint);
- int ret = _zmq_connect(socket,endpoint); 
+  uchar endpointChar[];  
+  StringToCharArray(endpoint, endpointChar);   
+  int ret = _zmq_connect(socket, endpointChar);  
  if (ret==-1) 
    z_error();
  return(ret);
@@ -149,7 +157,7 @@ int z_connect(int socket,string endpoint) { //for the clients
  
 //TODO: z_send_raw
 int z_send_double_array(int socket,double array[],int flags=0) {
- z_trace("z_send_double_array: "+flags); 
+ z_trace("z_send_double_array: "+flags);
  int ret = _zmq_send_double_array(array,ArraySize(array),socket,flags); 
  if (ret==-1)
    z_error();  
@@ -178,9 +186,9 @@ string z_recv(int socket,int flags=0) {
  int message = z_msg_new(""); 
  int ret = _zmq_recv(socket,message,flags);
  string msg = ""; 
- if (ret==-1)
+ if (ret==-1 && flags!=ZMQ_NOBLOCK){
    z_error();
- else
+ }else
    msg = z_msg(message);
  z_msg_close(message);
  return(msg);
@@ -214,9 +222,45 @@ int z_term(int context) {
 //before i figured this out.
 int z_error () {
   int err = _zmq_errno(); 
-  if (err!=0) {
-    Print("ZMQ zmq_error "+err+": "+_zmq_strerror(err));
+  if (err!=0 &&
+      err!=100 && // Address in use (handled internaly
+      err!=128    // Unknow error
+      ) 
+  {
+    Print("ZMQ zmq_error ("+err+"): "+_ptr2str(_zmq_strerror(err)));
   }
   return(err);
 }
 
+#import "kernel32.dll"  
+   int lstrlenA(int);  
+   void RtlMoveMemory(uchar & arr[], int, int);  
+   int LocalFree(int); // May need to be changed depending on how the DLL allocates memory  
+#import 
+
+string _ptr2str(int recvPtr) {
+  // Get the length of the string   
+  int mssgLen = lstrlenA(recvPtr);     
+  // if message length is 0, leave.    
+  if(mssgLen<1){  
+    z_trace("_ptr2str: Warning! Message has zero length.");  
+    return("");  
+  }   
+  //else z_trace("mssgLen: "+mssgLen);      
+  // Create a uchar[] array whose size is the string length (plus null terminator)  
+  uchar stringChar[];  
+  ArrayResize(stringChar, mssgLen+1);  
+     
+  // Use the Win32 API to copy the string from the block returned by the DLL  
+  // into the uchar[] array     
+  RtlMoveMemory(stringChar, recvPtr, mssgLen+1);  
+  // Convert the uchar[] array to a message string  
+  string mssg = CharArrayToString(stringChar);  
+  // Free the string memory returned by the DLL. This step can be removed but, without it,  
+  // there will be a memory leak.  
+  // The correct method for freeing the string *depends on how the DLL allocated the memory*  
+  // The following assumes that the DLL has used LocalAlloc (or an indirect equivalent). If not,  
+  // then the following line may not fix the leak, and may even cause a crash.     
+  //LocalFree(recvPtr); 
+  return mssg; 
+}

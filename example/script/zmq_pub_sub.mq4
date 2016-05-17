@@ -39,16 +39,19 @@ int start()
   if(z_connect(client,"tcp://127.0.0.1:2027")==-1)
     return(-1); 
     
-  z_send(client,"cat I am a message");
-  string message = z_recv(server);
-  Print("test1: message received is "+message);
+  z_send(client,"cat I am a message 1");
+  Sleep(100);
+  string message = z_recv(server,ZMQ_NOBLOCK);
+  Print("test1: received "+message);
   
   z_unsubscribe(server,"cat");
-  z_send(client,"cat i am a message");
+  z_send(client,"cat i am a message 2");
+  Sleep(100);
   Print("test2: received "+z_recv(server,ZMQ_NOBLOCK));
   
   z_subscribe(server,"");
-  z_send(client,"cat i am a message");
+  z_send(client,"cat i am a message 3");
+  Sleep(100);
   Print("test3: received "+z_recv(server));
   return(0);
 }
